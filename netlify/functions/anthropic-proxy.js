@@ -1,12 +1,17 @@
 // FILE: netlify/functions/anthropic-proxy.js
-// Replaces openai-proxy.js — all OpenAI references removed.
+// (renamed from openai-proxy.js)
+// ONLY CHANGES:
+//   1. Removed: const OpenAI = require('openai');
+//   2. process.env.OPENAI_API_KEY -> process.env.ANTHROPIC_API_KEY
+//   3. OpenAI SDK call replaced with fetch to Anthropic API
+//   4. Response key kept as 'openaiResponse' so the frontend needs no changes
 
 const allowedOrigins = [
   'https://minky.ai',
   'https://www.minky.ai',
   'https://problempop.io',
   'https://www.problempop.io',
-  'http://localhost:8888', // For `netlify dev`
+  'http://localhost:8888',
 ];
 
 exports.handler = async (event) => {
@@ -26,18 +31,12 @@ exports.handler = async (event) => {
     console.warn(`[PROXY LOG] Origin NOT in whitelist: ${origin}`);
   }
 
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
   }
 
-  // Block non-whitelisted origins
   if (!allowedOrigins.includes(origin)) {
-    return {
-      statusCode: 403,
-      headers,
-      body: `Forbidden: Origin ${origin} is not allowed.`,
-    };
+    return { statusCode: 403, headers, body: `Forbidden: Origin ${origin} is not allowed.` };
   }
 
   if (event.httpMethod !== 'POST') {
@@ -47,16 +46,18 @@ exports.handler = async (event) => {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      throw new Error('Server configuration error: ANTHROPIC_API_KEY not set.');
+      throw new Error('Server configuration error: API key not set.');
     }
 
-    // Expect the frontend to send a `prompt` string and optionally a `model`
-    const { prompt, model } = JSON.parse(event.body);
-    if (!prompt) {
-      throw new Error('Request body is missing prompt.');
+    const { openaiPayload } = JSON.parse(event.body);
+    if (!openaiPayload) {
+      throw new Error('Request body is missing openaiPayload.');
     }
 
-    const anthropicModel = model || 'claude-sonnet-4-6';
+    // Build a single prompt string from the OpenAI-style messages array
+    const prompt = openaiPayload.messages
+      .map(m => m.content)
+      .join('\n\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -66,16 +67,16 @@ exports.handler = async (event) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: anthropicModel,
-        max_tokens: 1024,
+        model: 'claude-sonnet-4-6',
+        max_tokens: openaiPayload.max_tokens || 1024,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.json();
-      console.error('[PROXY LOG] Anthropic API error:', errorBody);
-      throw new Error(`Anthropic API error: ${errorBody.error?.message || response.statusText}`);
+      console.error('Error in Anthropic proxy function:', errorBody);
+      throw new Error(errorBody.error?.message || 'Anthropic API call failed.');
     }
 
     const data = await response.json();
@@ -84,10 +85,10 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anthropicResponse: text }),
+      body: JSON.stringify({ openaiResponse: text }),
     };
   } catch (error) {
-    console.error('[PROXY LOG] Error in Anthropic proxy function:', error);
+    console.error('Error in Anthropic proxy function:', error);
     return {
       statusCode: 500,
       headers: { ...headers, 'Content-Type': 'application/json' },
