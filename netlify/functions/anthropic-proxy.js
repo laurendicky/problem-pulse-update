@@ -8,6 +8,15 @@ const allowedOrigins = [
   'http://localhost:8888',
 ];
 
+// Map OpenAI model names from frontend to Anthropic equivalents
+// 'gpt-4o-mini' (lightweight tasks) -> Haiku 4.5 (very fast, cheap)
+// 'gpt-4o' (heavy tasks) -> Sonnet 4.6 (fast and capable)
+function mapModel(openaiModel) {
+  if (!openaiModel) return 'claude-sonnet-4-6';
+  if (openaiModel.includes('mini')) return 'claude-haiku-4-5-20251001';
+  return 'claude-sonnet-4-6';
+}
+
 exports.handler = async (event) => {
   const origin = event.headers.origin;
   console.log(`[PROXY LOG] Incoming request from origin: ${origin}`);
@@ -31,6 +40,10 @@ exports.handler = async (event) => {
     if (!openaiPayload) {
       throw new Error('Request body is missing openaiPayload.');
     }
+
+    const model = mapModel(openaiPayload.model);
+    console.log(`[PROXY LOG] Using model: ${model} (requested: ${openaiPayload.model})`);
+
     // Build a single prompt string from the OpenAI-style messages array
     const prompt = openaiPayload.messages
       .map(m => m.content)
@@ -44,7 +57,7 @@ exports.handler = async (event) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: model,
         max_tokens: openaiPayload.max_tokens || 4096,
         messages: [{ role: 'user', content: prompt }],
       }),
