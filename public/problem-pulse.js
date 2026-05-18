@@ -3,8 +3,8 @@
 // ==================================================================
 
 // --- 1. GLOBAL VARIABLES & CONSTANTS ---
-const ANTHROPIC_PROXY_URL = 'https://iridescent-fairy-a41db7.netlify.
-const REDDIT_PROXY_URL = 'https://iridescent-fairy-a41db7.netlify.app
+const ANTHROPIC_PROXY_URL = 'https://problempop-anthropic.netlify.app/.netlify/functions/anthropic-proxy';
+const REDDIT_PROXY_URL = 'https://problempop-anthropic.netlify.app/.netlify/functions/reddit-proxy';
 const HARD_MIN_SUBSCRIBERS = 1000;
 const HARD_MIN_ACTIVE_USERS = 0;
 const LENIENT_MIN_SUBSCRIBERS = 500;
