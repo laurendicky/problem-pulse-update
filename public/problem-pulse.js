@@ -555,8 +555,7 @@ async function generateAndRenderHybridSentiment(posts, audienceContext) {
     const wordFreq = { positive: new Map(), negative: new Map() };
 
     posts.forEach(post => {
-        const text = `${post.data.title || post.data.link_title || ''} ${post.data.
-selftext || post.data.body || ''}`.toLowerCase();
+        const text = `${post.data.title || post.data.link_title || ''} ${post.data.selftext || post.data.body || ''}`.toLowerCase();
         const words = text.replace(/[^a-z\s']/g, '').split(/\s+/);
         
         const uniqueWordsInPost = { positive: new Set(), negative: new Set() };
